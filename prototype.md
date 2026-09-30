@@ -105,6 +105,8 @@ Hold mouse handling uses explicit `onpointerdown` / `onpointerup`, not legacy cl
 
 Transport-sync smoke checks ran the real locked clock and `gen~`: one/two/four-bar durations, quarter notes, 3/4 meter, tempo changes, song-position jumps, held Position changes, grab ownership, grid return, reverse, and Free independence. In a separate Live Suite set, the actual AMXD followed Play/Stop, froze during Hold and scrubbing, returned to the grid on release, displayed WAITING when stopped, and selected a quarter-note cycle via the Rate knob.
 
+The MIDI note and CC paths use `join 2 @triggers 0` to attach the channel before forwarding each event. Earlier `append 1` objects incorrectly declared a second inlet; Max deleted both channel patchcords when loading. A native Max smoke run of the corrected routing confirmed channel preservation for notes on channels 1, 2, and 16, note-off and velocity-zero release, plus channel-specific All Notes Off and All Sound Off messages, without extra events from channel updates.
+
 ## Deferred design
 
 - Contour authoring, point editing, and segment bending.

@@ -1044,7 +1044,7 @@
             100,
             22
           ],
-          "text": "append 1",
+          "text": "join 2 @triggers 0",
           "outlettype": [
             ""
           ]
@@ -1062,7 +1062,7 @@
             100,
             22
           ],
-          "text": "append 1",
+          "text": "join 2 @triggers 0",
           "outlettype": [
             ""
           ]
