@@ -202,11 +202,13 @@ Keep the subtractive synth simple. Make the distinctive instrument out of the re
 
 The current prototype is a Max for Live modulation device rather than a synth. The scrub playhead is the strongest interaction so far.
 
-Requested next direction:
+Implemented direction:
 
 - Place playhead/seek markers at chosen locations on the envelope/contour.
 - Assign a MIDI note to each marker; triggering that note skips the read position to that location.
 - Automatic scanning is orthogonal to these triggers, not a mutually exclusive partition-playback mode.
 - Receive notes directly in Scrubbles: use a Max MIDI Effect with internal signal-rate modulation processing, not an Audio Effect plus a MIDI companion.
 
-This revises the earlier idea of independently triggered partitions with individual durations. Marker count, note assignments, retrigger/overlap behavior, and whether a held trigger also pauses scanning remain undecided. Seek markers are a design note, not part of the current Hold change.
+The prototype now has four draggable seek markers on C#0–E0 (MIDI 25–28), with C0 (24) reserved for momentary Freeze. Their note messages are consumed instead of playing a downstream instrument. Clicking a marker seeks; dragging edits its saved position. Marker note-on jumps without changing scanning or Freeze; note-off has no playback action. In Sync, a trigger temporarily displaces phase while retaining the synced rate, until an explicit return-to-grid action.
+
+This replaces the earlier independently triggered partitions with individual durations. Bounded slice playback is still outside the current design; markers select locations rather than define sections.

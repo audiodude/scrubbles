@@ -85,7 +85,7 @@
           ],
           "parameter_enable": 1,
           "parameter_mappable": 1,
-          "annotation": "Pause automatic travel while pressed. MIDI Hold Note (default 36 / C1) also holds until released. Run, Hold and playhead grab are independent.",
+          "annotation": "Freeze automatic travel while pressed. MIDI C0 (24) also freezes until released; C#0–E0 seek markers. Control notes are consumed. Run, Hold and playhead grab are independent.",
           "saved_attribute_attributes": {
             "valueof": {
               "parameter_longname": "Hold",
@@ -142,7 +142,7 @@
           "outlettype": [
             ""
           ],
-          "comment": "param / grab / map / unmap / bang",
+          "comment": "param / seekmarker / grab / map / unmap / bang",
           "index": 1
         }
       },
@@ -1004,7 +1004,7 @@
           "outlettype": [
             ""
           ],
-          "comment": "Raw MIDI bytes; parent routes MIDI input unchanged to MIDI output"
+          "comment": "Raw MIDI for controls; parent consumes C0–E0 before MIDI output"
         }
       },
       {
@@ -1106,61 +1106,118 @@
       },
       {
         "box": {
-          "id": "holdnote",
-          "maxclass": "live.numbox",
+          "id": "marker1",
+          "maxclass": "live.dial",
           "numinlets": 1,
           "numoutlets": 2,
-          "patching_rect": [
-            650,
-            145,
-            84,
-            18
-          ],
-          "presentation": 1,
-          "presentation_rect": [
-            650,
-            145,
-            84,
-            18
-          ],
-          "outlettype": [
-            "",
-            ""
-          ],
+          "patching_rect": [870, 510, 90, 48],
+          "outlettype": ["", ""],
+          "hidden": 1,
           "parameter_enable": 1,
-          "varname": "p_holdnote",
+          "varname": "p_marker1",
           "saved_attribute_attributes": {
             "valueof": {
-              "parameter_longname": "Hold Note",
-              "parameter_shortname": "Hold Note",
-              "parameter_type": 1,
-              "parameter_mmin": 0,
-              "parameter_mmax": 127,
-              "parameter_initial": [
-                36
-              ],
+              "parameter_longname": "Marker 1",
+              "parameter_shortname": "C#0",
+              "parameter_type": 0,
+              "parameter_mmin": 0.0,
+              "parameter_mmax": 1.0,
+              "parameter_initial": [0.0],
               "parameter_initial_enable": 1,
               "parameter_invisible": 0,
               "parameter_modmode": 0,
-              "parameter_unitstyle": 0,
-              "parameter_order": 8,
+              "parameter_unitstyle": 1,
+              "parameter_order": 11,
               "parameter_defer": 1
             }
-          },
-          "activebgcolor": [
-            0.17,
-            0.2,
-            0.22,
-            1
-          ],
-          "activetextcolor": [
-            0.92,
-            0.94,
-            0.96,
-            1
-          ],
-          "fontsize": 12,
-          "hint": "MIDI note number. Ableton C1 = 36. Changing this releases Hold."
+          }
+        }
+      },
+      {
+        "box": {
+          "id": "marker2",
+          "maxclass": "live.dial",
+          "numinlets": 1,
+          "numoutlets": 2,
+          "patching_rect": [990, 510, 90, 48],
+          "outlettype": ["", ""],
+          "hidden": 1,
+          "parameter_enable": 1,
+          "varname": "p_marker2",
+          "saved_attribute_attributes": {
+            "valueof": {
+              "parameter_longname": "Marker 2",
+              "parameter_shortname": "D0",
+              "parameter_type": 0,
+              "parameter_mmin": 0.0,
+              "parameter_mmax": 1.0,
+              "parameter_initial": [0.25],
+              "parameter_initial_enable": 1,
+              "parameter_invisible": 0,
+              "parameter_modmode": 0,
+              "parameter_unitstyle": 1,
+              "parameter_order": 12,
+              "parameter_defer": 1
+            }
+          }
+        }
+      },
+      {
+        "box": {
+          "id": "marker3",
+          "maxclass": "live.dial",
+          "numinlets": 1,
+          "numoutlets": 2,
+          "patching_rect": [1110, 510, 90, 48],
+          "outlettype": ["", ""],
+          "hidden": 1,
+          "parameter_enable": 1,
+          "varname": "p_marker3",
+          "saved_attribute_attributes": {
+            "valueof": {
+              "parameter_longname": "Marker 3",
+              "parameter_shortname": "D#0",
+              "parameter_type": 0,
+              "parameter_mmin": 0.0,
+              "parameter_mmax": 1.0,
+              "parameter_initial": [0.5],
+              "parameter_initial_enable": 1,
+              "parameter_invisible": 0,
+              "parameter_modmode": 0,
+              "parameter_unitstyle": 1,
+              "parameter_order": 13,
+              "parameter_defer": 1
+            }
+          }
+        }
+      },
+      {
+        "box": {
+          "id": "marker4",
+          "maxclass": "live.dial",
+          "numinlets": 1,
+          "numoutlets": 2,
+          "patching_rect": [1230, 510, 90, 48],
+          "outlettype": ["", ""],
+          "hidden": 1,
+          "parameter_enable": 1,
+          "varname": "p_marker4",
+          "saved_attribute_attributes": {
+            "valueof": {
+              "parameter_longname": "Marker 4",
+              "parameter_shortname": "E0",
+              "parameter_type": 0,
+              "parameter_mmin": 0.0,
+              "parameter_mmax": 1.0,
+              "parameter_initial": [0.75],
+              "parameter_initial_enable": 1,
+              "parameter_invisible": 0,
+              "parameter_modmode": 0,
+              "parameter_unitstyle": 1,
+              "parameter_order": 14,
+              "parameter_defer": 1
+            }
+          }
         }
       },
       {
@@ -1377,17 +1434,42 @@
       },
       {
         "box": {
-          "id": "changed-holdnote",
+          "id": "changed-marker1",
           "maxclass": "newobj",
-          "text": "prepend changed holdnote",
+          "text": "prepend changed marker1",
           "numinlets": 1,
           "numoutlets": 1,
-          "patching_rect": [
-            600,
-            470,
-            170,
-            22
-          ]
+          "patching_rect": [870, 580, 170, 22]
+        }
+      },
+      {
+        "box": {
+          "id": "changed-marker2",
+          "maxclass": "newobj",
+          "text": "prepend changed marker2",
+          "numinlets": 1,
+          "numoutlets": 1,
+          "patching_rect": [990, 610, 170, 22]
+        }
+      },
+      {
+        "box": {
+          "id": "changed-marker3",
+          "maxclass": "newobj",
+          "text": "prepend changed marker3",
+          "numinlets": 1,
+          "numoutlets": 1,
+          "patching_rect": [1110, 640, 170, 22]
+        }
+      },
+      {
+        "box": {
+          "id": "changed-marker4",
+          "maxclass": "newobj",
+          "text": "prepend changed marker4",
+          "numinlets": 1,
+          "numoutlets": 1,
+          "patching_rect": [1230, 670, 170, 22]
         }
       }
     ],
@@ -2180,26 +2262,50 @@
       },
       {
         "patchline": {
-          "source": [
-            "holdnote",
-            0
-          ],
-          "destination": [
-            "changed-holdnote",
-            0
-          ]
+          "source": ["marker1", 0],
+          "destination": ["changed-marker1", 0]
         }
       },
       {
         "patchline": {
-          "source": [
-            "changed-holdnote",
-            0
-          ],
-          "destination": [
-            "control",
-            0
-          ]
+          "source": ["changed-marker1", 0],
+          "destination": ["control", 0]
+        }
+      },
+      {
+        "patchline": {
+          "source": ["marker2", 0],
+          "destination": ["changed-marker2", 0]
+        }
+      },
+      {
+        "patchline": {
+          "source": ["changed-marker2", 0],
+          "destination": ["control", 0]
+        }
+      },
+      {
+        "patchline": {
+          "source": ["marker3", 0],
+          "destination": ["changed-marker3", 0]
+        }
+      },
+      {
+        "patchline": {
+          "source": ["changed-marker3", 0],
+          "destination": ["control", 0]
+        }
+      },
+      {
+        "patchline": {
+          "source": ["marker4", 0],
+          "destination": ["changed-marker4", 0]
+        }
+      },
+      {
+        "patchline": {
+          "source": ["changed-marker4", 0],
+          "destination": ["control", 0]
         }
       }
     ],
@@ -2271,25 +2377,24 @@
         },
         "1": {
           "index": 1,
-          "name": "Timing / Notes",
+          "name": "Timing / Markers",
           "parameters": [
             "sync",
             "division",
-            "holdnote",
-            "-",
-            "-",
-            "-",
+            "marker1",
+            "marker2",
+            "marker3",
+            "marker4",
             "-",
             "-"
           ]
         }
       },
       "inherited_shortname": 1,
-      "holdnote": [
-        "Hold Note",
-        "Hold Note",
-        0
-      ]
+      "marker1": ["Marker 1", "C#0", 0],
+      "marker2": ["Marker 2", "D0", 0],
+      "marker3": ["Marker 3", "D#0", 0],
+      "marker4": ["Marker 4", "E0", 0]
     },
     "dependency_cache": [
       {

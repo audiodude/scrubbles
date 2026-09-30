@@ -7,7 +7,7 @@ import { validatePatcher } from './validate_maxpat.mjs';
 const root = dirname(fileURLToPath(import.meta.url));
 for (const file of ['scrubbles.maxpat', 'scrubbles-engine.gendsp'])
     validatePatcher(JSON.parse(readFileSync(join(root, file), 'utf8')).patcher, file);
-for (const file of ['scrubbles-control.js', 'scrubbles-ui.js', 'scrubbles-hold.js'])
+for (const file of ['scrubbles-control.js', 'scrubbles-ui.js', 'scrubbles-hold.js', 'scrubbles-midi.js'])
     readFileSync(join(root, file), 'utf8');
 
 // Remapperator's editable AMPF shell plus same-folder abstractions. MIDI device
@@ -26,12 +26,14 @@ const patcher = {
     boxes: [
         { box: { id: 'midi-in', maxclass: 'newobj', text: 'midiin', numinlets: 1, numoutlets: 1, outlettype: ['int'], patching_rect: [20, 220, 60, 22] } },
         { box: { id: 'midi-out', maxclass: 'newobj', text: 'midiout', numinlets: 1, numoutlets: 0, patching_rect: [20, 280, 60, 22] } },
+        { box: { id: 'midi-filter', maxclass: 'newobj', text: 'v8 scrubbles-midi.js', numinlets: 1, numoutlets: 1, outlettype: [''], patching_rect: [20, 250, 130, 22] } },
         { box: { id: 'device', maxclass: 'bpatcher', name: 'scrubbles.maxpat', varname: 'scrubbles', numinlets: 2, numoutlets: 1, outlettype: [''], patching_rect: [20, 20, 760, 169], presentation: 1, presentation_rect: [0, 0, 760, 169], offset: [0, 0], embed: 0, viewvisibility: 1, border: 0 } },
-        { box: { id: 'description', maxclass: 'comment', text: 'Scrubbles: perform a modulation contour. MIDI passes through unchanged; Hold Note pauses automatic travel while held. No companion device needed. Keep unfrozen while editing.', numinlets: 1, numoutlets: 0, patching_rect: [150, 215, 550, 60] } }
+        { box: { id: 'description', maxclass: 'comment', text: 'Scrubbles: perform a modulation contour. C0 freezes; C#0–E0 seek four markers. These notes are consumed; other MIDI passes through. Keep unfrozen while editing.', numinlets: 1, numoutlets: 0, patching_rect: [160, 215, 550, 60] } }
     ],
     lines: [
-        { patchline: { source: ['midi-in', 0], destination: ['midi-out', 0], order: 0 } },
-        { patchline: { source: ['midi-in', 0], destination: ['device', 1], order: 1 } }
+        { patchline: { source: ['midi-in', 0], destination: ['device', 1], order: 0 } },
+        { patchline: { source: ['midi-in', 0], destination: ['midi-filter', 0], order: 1 } },
+        { patchline: { source: ['midi-filter', 0], destination: ['midi-out', 0] } }
     ],
     parameters: {
         'device::seed': ['Seed', 'Seed', 0],
@@ -42,12 +44,15 @@ const patcher = {
         'device::reverse': ['Reverse', 'Reverse', 0],
         'device::bipolar': ['Bipolar', 'Bipolar', 0],
         'device::hold': ['Hold', 'Hold', 0],
-        'device::holdnote': ['Hold Note', 'Hold Note', 0],
+        'device::marker1': ['Marker 1', 'C#0', 0],
+        'device::marker2': ['Marker 2', 'D0', 0],
+        'device::marker3': ['Marker 3', 'D#0', 0],
+        'device::marker4': ['Marker 4', 'E0', 0],
         'device::sync': ['Sync', 'Sync', 0],
         'device::division': ['Division', 'Division', 0],
         parameterbanks: {
             '0': { index: 0, name: 'Scrubbles', parameters: ['Position', 'Rate', 'Amount', 'Seed', 'Run', 'Reverse', 'Bipolar', 'Hold'] },
-            '1': { index: 1, name: 'Timing / Notes', parameters: ['Sync', 'Division', 'Hold Note', '-', '-', '-', '-', '-'] }
+            '1': { index: 1, name: 'Timing / Markers', parameters: ['Sync', 'Division', 'Marker 1', 'Marker 2', 'Marker 3', 'Marker 4', '-', '-'] }
         },
         inherited_shortname: 1
     },
@@ -64,6 +69,7 @@ const patcher = {
         { name: 'scrubbles-engine.gendsp', bootpath: '.', patcherrelativepath: '.', type: 'gDSP', implicit: 1 },
         { name: 'scrubbles-control.js', bootpath: '.', patcherrelativepath: '.', type: 'TEXT', implicit: 1 },
         { name: 'scrubbles-hold.js', bootpath: '.', patcherrelativepath: '.', type: 'TEXT', implicit: 1 },
+        { name: 'scrubbles-midi.js', bootpath: '.', patcherrelativepath: '.', type: 'TEXT', implicit: 1 },
         { name: 'scrubbles-ui.js', bootpath: '.', patcherrelativepath: '.', type: 'TEXT', implicit: 1 }
     ],
     autosave: 0

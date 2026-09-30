@@ -12,7 +12,7 @@ const TAU = Math.PI * 2;
 const RATE_MIN = 0.02;
 const RATE_MAX = 8;
 const RATE_LOG = Math.log(RATE_MAX / RATE_MIN);
-const defaults = { seed: 5, position: 0, rate: 0.25, sync: 1, division: 6, hostplaying: 0, amount: 0.5, running: 1, hold: 0, midiheld: 0, reverse: 0, bipolar: 1 };
+const defaults = { seed: 5, position: 0, rate: 0.25, sync: 1, division: 6, hostplaying: 0, amount: 0.5, running: 1, hold: 0, midiheld: 0, reverse: 0, bipolar: 1, marker1: 0, marker2: 0.25, marker3: 0.5, marker4: 0.75 };
 const values = Object.assign({}, defaults);
 const seeds = ["Ramp", "Triangle", "Needle", "Staircase", "Gate", "Landscape"];
 const divisions = ["1/64", "1/32", "1/16", "1/8", "1/4", "1/2", "1 bar", "2 bars", "4 bars"];
@@ -40,6 +40,8 @@ const color = {
 };
 const graph = { x: 17, y: 54, w: 450, h: 60 };
 const ruler = { x: 12, y: 117, w: 460, h: 23 };
+const markerNames = ["marker1", "marker2", "marker3", "marker4"];
+const markerNotes = ["C#0", "D0", "D#0", "E0"];
 const controls = [
     { name: "position", label: "POSITION", x: 491, y: 58, w: 77, h: 79 },
     { name: "rate", label: "RATE", x: 579, y: 58, w: 77, h: 79 },
@@ -62,6 +64,7 @@ const buttons = {
 };
 let actualPosition = 0;
 let actualValue = 0.12;
+let activeMarker = -1;
 let mappingArmed = false;
 let targetName = "";
 let statusText = "";
@@ -135,6 +138,28 @@ function contourPath(points) {
         mgraphics.line_to(graph.x + points[i][0] * graph.w, graph.y + (1 - points[i][1]) * graph.h);
     }
 }
+// Separate vertical label lanes keep coincident markers individually reachable.
+function markerRect(index) {
+    const x = graph.x + values[markerNames[index]] * graph.w;
+    return { x: clamp(x - 16, graph.x, graph.x + graph.w - 32), y: graph.y + index * 15, w: 32, h: 14 };
+}
+function drawMarkers() {
+    for (let i = 0; i < markerNames.length; i++) {
+        const x = graph.x + values[markerNames[i]] * graph.w;
+        line(x, graph.y, x, graph.y + graph.h, activeMarker === i ? color.amberDim : color.tealDim);
+    }
+    for (let i = 0; i < markerNames.length; i++) {
+        const name = markerNames[i];
+        const x = graph.x + values[name] * graph.w;
+        const r = markerRect(i);
+        const active = activeMarker === i;
+        const hot = hover === name || (drag && drag.name === name);
+        panel(r.x, r.y, r.w, r.h, hot ? color.line : active ? color.amberDim : color.panel, 2);
+        text(markerNotes[i], r.x + r.w / 2, r.y + 10, 9, active ? color.amber : color.teal, "center");
+        // The notch, unlike the edge-clamped label, is at the exact saved position.
+        line(x, r.y + 11, x, r.y + 14, active ? color.amber : color.teal, 2);
+    }
+}
 function drawGraph() {
     panel(12, 49, 460, 67, color.inset, 3);
     for (let i = 0; i <= 4; i++) {
@@ -159,6 +184,7 @@ function drawGraph() {
     source(color.amber);
     mgraphics.arc(px, py, 3, 0, TAU);
     mgraphics.fill();
+    drawMarkers();
     panel(ruler.x, ruler.y, ruler.w, ruler.h, hover === "grab" || (drag && drag.name === "grab") ? color.panel : color.background, 3);
     line(graph.x, 126, graph.x + graph.w, 126, color.line);
     for (let i = 0; i <= 8; i++) {
@@ -174,6 +200,8 @@ function hint() {
     if (errorText) return errorText;
     if (mappingArmed) return "Mapping armed · click a parameter in Live · Map to cancel";
     const name = drag ? drag.name : hover;
+    const marker = markerNames.indexOf(name);
+    if (marker !== -1) return markerNotes[marker] + " · click to seek · drag to save " + (values[name] * 100).toFixed(1) + "%";
     if (name === "grab") return !values.running ? "Scrub · stays stopped on release" : values.hold || values.midiheld ? "Scrub · stays held on release" : values.sync ? "Scrub · release returns to grid" : "Scrub · release resumes here";
     if (name === "position") return "Phase offset · drag up/down · Shift: fine · double-click: reset";
     if (name === "rate") return values.sync ? "Whole contour cycle: " + divisions[values.division] + (values.division < 6 ? " note" : "") : "Cycles per second · logarithmic · Shift: fine · double-click: reset";
@@ -185,7 +213,7 @@ function hint() {
     if (name === "map") return "Map: arm, then click the destination parameter in Live";
     if (name === "unmap") return "Unmap: release the destination without changing its base";
     if (name === "seed") return "Choose a contour · keep the current position and transport";
-    if (name === "graph") return "Read-only contour · grab the amber ruler below to scrub";
+    if (name === "graph") return "Drag note labels to place markers · ruler to scrub";
     if (name === "target" && targetName) return targetName;
     if (values.sync) {
         if (!values.running) return "Stopped · Run returns to Live grid";
@@ -215,7 +243,7 @@ function paint() {
     button(buttons.reverse, "REVERSE", !!values.reverse, hover === "reverse", false);
     button(buttons.bipolar, values.bipolar ? "BIPOLAR ±" : "UNIPOLAR +", !!values.bipolar, hover === "bipolar", false);
     text(hint(), 340, 158, 10, errorText ? color.error : mappingArmed ? color.amber : color.muted, "left", 235);
-    text("HOLD NOTE", 582, 158, 9, color.muted);
+    text("C0 FREEZE", 744, 158, 9, values.midiheld ? color.amber : color.muted, "right");
 }
 
 function state(name, value) {
@@ -223,6 +251,12 @@ function state(name, value) {
     const number = Number(value);
     if (!Number.isFinite(number)) return;
     values[name] = name === "seed" ? Math.round(clamp(number, 0, 5)) : name === "division" ? Math.round(clamp(number, 0, divisions.length - 1)) : name === "rate" ? clamp(number, RATE_MIN, RATE_MAX) : name === "sync" || name === "hostplaying" || name === "running" || name === "hold" || name === "reverse" || name === "bipolar" ? (number >= 0.5 ? 1 : 0) : clamp(number, 0, 1);
+    mgraphics.redraw();
+}
+function markeractive(index) {
+    const number = Number(index);
+    if (!Number.isInteger(number) || number < 0 || number >= markerNames.length) return;
+    activeMarker = number;
     mgraphics.redraw();
 }
 function telemetry(position, value) {
@@ -264,14 +298,14 @@ function hit(x, y) {
     }
     for (const name in buttons) if (inside(x, y, buttons[name])) return name;
     for (let i = 0; i < controls.length; i++) if (inside(x, y, controls[i])) return controls[i].name;
+    for (let i = 0; i < markerNames.length; i++) if (inside(x, y, markerRect(i))) return markerNames[i];
     if (inside(x, y, ruler)) return "grab";
     if (inside(x, y, graph)) return "graph";
     if (x >= 494 && x <= 744 && y >= 34 && y < 55) return "target";
     return "";
 }
 function scrubPosition(x) { return clamp((x - graph.x) / graph.w, 0, 1); }
-function onclick(x, y, buttonDown) {
-    if (!buttonDown) return;
+function beginGesture(x, y) {
     hover = hit(x, y);
     errorText = "";
     if (hover === "seed") sendParam("seed", hoverSeed);
@@ -282,6 +316,8 @@ function onclick(x, y, buttonDown) {
     } else if (hover === "unmap") {
         mappingArmed = false;
         outlet(0, "unmap");
+    } else if (markerNames.indexOf(hover) !== -1) {
+        drag = { name: hover, index: markerNames.indexOf(hover), x: x, position: values[hover], moved: false };
     } else if (hover === "grab") {
         drag = { name: "grab", position: scrubPosition(x) };
         outlet(0, "grab", 1, drag.position);
@@ -291,12 +327,19 @@ function onclick(x, y, buttonDown) {
     }
     mgraphics.redraw();
 }
-function ondrag(x, y, buttonDown, command, shift) {
+function updateGesture(x, y, buttonDown, shift) {
     if (!drag) return;
     if (drag.name === "grab") {
         drag.position = scrubPosition(x);
-        // Max continues ondrag outside the box and ends with buttonDown == 0.
+        // Pointer-up supplies the release explicitly, regardless of its buttons mask.
         outlet(0, "grab", buttonDown ? 1 : 0, drag.position);
+    } else if (markerNames.indexOf(drag.name) !== -1) {
+        if (Math.abs(x - drag.x) >= 3) drag.moved = true;
+        if (drag.moved) sendParam(drag.name, clamp(drag.position + (x - drag.x) / graph.w, 0, 1));
+        else if (!buttonDown) {
+            markeractive(drag.index);
+            outlet(0, "seekmarker", drag.index);
+        }
     } else {
         const scale = shift ? 0.1 : 1;
         drag.normalized = clamp(drag.normalized + ((drag.y - y) / 110 + (x - drag.x) / 330) * scale, 0, 1);
@@ -310,7 +353,7 @@ function ondrag(x, y, buttonDown, command, shift) {
     }
     mgraphics.redraw();
 }
-function ondblclick(x, y) {
+function resetControl(x, y) {
     const name = hit(x, y);
     if (name === "position" || name === "rate" || name === "amount") {
         const param = controlParam(name);
@@ -324,22 +367,68 @@ function ondblclick(x, y) {
     }
     mgraphics.redraw();
 }
-function onidle(x, y) {
+function updateHover(x, y) {
     hover = hit(x, y);
     mgraphics.redraw();
 }
-function onidleout() {
+function clearHover() {
     // Leaving the object is not a release: Max still owns the held gesture.
     hover = "";
     mgraphics.redraw();
 }
+
+let pointerGesture = null;
+let lastControlClick = null;
+function onpointerdown(event) {
+    if (!(event.buttons & 1) || pointerGesture) return;
+    const x = event.clientX;
+    const y = event.clientY;
+    const name = hit(x, y);
+    const now = Date.now();
+    const doubleClick = lastControlClick && lastControlClick.name === name &&
+        now - lastControlClick.time <= 400 &&
+        Math.abs(x - lastControlClick.x) <= 4 && Math.abs(y - lastControlClick.y) <= 4;
+    pointerGesture = { id: event.pointerId, name: name, x: x, y: y, moved: false, doubleClick: doubleClick };
+    lastControlClick = null;
+    beginGesture(x, y);
+    if (doubleClick) resetControl(x, y);
+}
+function onpointermove(event) {
+    if (!pointerGesture) {
+        updateHover(event.clientX, event.clientY);
+        return;
+    }
+    if (event.pointerId !== pointerGesture.id) return;
+    if (Math.abs(event.clientX - pointerGesture.x) >= 3 || Math.abs(event.clientY - pointerGesture.y) >= 3) pointerGesture.moved = true;
+    updateGesture(event.clientX, event.clientY, true, max.shiftkeydown);
+}
+function onpointerup(event) {
+    if (!pointerGesture || event.pointerId !== pointerGesture.id) return;
+    const gesture = pointerGesture;
+    pointerGesture = null;
+    // Max can report buttons == 1 on pointer-up; the event itself owns release.
+    updateGesture(event.clientX, event.clientY, false, max.shiftkeydown);
+    if (!gesture.moved && !gesture.doubleClick &&
+        Math.abs(event.clientX - gesture.x) < 3 && Math.abs(event.clientY - gesture.y) < 3 &&
+        (gesture.name === "position" || gesture.name === "rate" || gesture.name === "amount")) {
+        lastControlClick = { name: gesture.name, x: event.clientX, y: event.clientY, time: Date.now() };
+    }
+    updateHover(event.clientX, event.clientY);
+}
+function onpointerenter(event) { updateHover(event.clientX, event.clientY); }
+function onpointerleave(event) { clearHover(); }
 function notifydeleted() {
     if (drag && drag.name === "grab") outlet(0, "grab", 0, drag.position);
 }
 
-onclick.local = 1;
-ondrag.local = 1;
-ondblclick.local = 1;
-onidle.local = 1;
-onidleout.local = 1;
+beginGesture.local = 1;
+updateGesture.local = 1;
+resetControl.local = 1;
+updateHover.local = 1;
+clearHover.local = 1;
+onpointerdown.local = 1;
+onpointermove.local = 1;
+onpointerup.local = 1;
+onpointerenter.local = 1;
+onpointerleave.local = 1;
 notifydeleted.local = 1;

@@ -15,6 +15,7 @@ Requires Node.js to build, and Live with Max for Live / Max 9 to run.
 ```sh
 node build-device.mjs
 node validate_maxpat.mjs scrubbles.maxpat scrubbles-engine.gendsp
+node --test scrubbles-midi.test.mjs
 ```
 
 Output: `scrubbles.amxd` beside its source files. The editable AMPF wrapper follows `../remapperator/`; **do not freeze it during iteration**. Keep these files together:
@@ -25,12 +26,13 @@ Output: `scrubbles.amxd` beside its source files. The editable AMPF wrapper foll
 - `scrubbles-control.js`
 - `scrubbles-ui.js`
 - `scrubbles-hold.js`
+- `scrubbles-midi.js`
 
 Replace an older audio-effect instance with this MIDI-effect build. Load it on a MIDI track, before an instrument if that track also makes sound. Click **Map**, then a destination parameter in Live; **Unmap** removes the assignment. Amount and Bipolar control modulation depth and polarity.
 
 To receive played notes, route the controller to this MIDI track and use Monitor In, or arm the track with Monitor Auto. Live's global transport does not need to run for free-running contour traversal.
 
-All MIDI passes through unchanged, including the Hold note. Use a dedicated MIDI control track if the Hold note should not also play a following instrument. There is no MIDI companion device or global MIDI bus.
+**C0–E0 (MIDI 24–28) are reserved controls on every MIDI channel.** Their note-on, note-off, and polyphonic pressure messages are consumed before MIDI output. Other notes, CCs, channel pressure, program changes, pitch bend, system-common, SysEx, and real-time messages pass through. The raw-byte filter emits explicit channel status bytes so filtering cannot corrupt downstream running status. There is no MIDI companion device or global MIDI bus.
 
 ## Transport sync
 
@@ -44,24 +46,43 @@ Sync uses `phasor~ @lock 1` as a signal-rate transport phase source, not a UI ti
 
 **Hold and scrub release return to the grid in Sync**, provided both Live and the device are running and no other Hold/grab remains active. This intentionally permits a position/value jump. Position offsets the synced phase; Reverse mirrors that phase. Free retains the previous resume-from-here behavior.
 
+Marker triggers temporarily displace that synced phase so traversal audibly continues from the selected location, rather than snapping back on the next sample. The displacement is cleared by Hold/grab release, device Run re-enable, Live Play, or entering Sync; a stopped/held read position still stays frozen until travel is permitted. Marker seeks never change the saved Position offset.
+
 For a simple rhythmic check, choose **Staircase**, **Sync**, **1 bar** in 4/4: its four steps occupy quarter notes. Start Live, and use a restrained modulation range on one destination.
 
 Replace existing device instances after rebuilding this version: new saved parameters and signal connections require reloading the patch, not just JavaScript autowatch.
 
-## Hold: direct note-on / note-off
+## Freeze: direct note-on / note-off
 
-**Hold Note defaults to MIDI 36, C1 in Live.** Change the numeric Hold Note field to select another note. No Live MIDI mapping is required.
+**C0 (MIDI 24 in Live) is the fixed Freeze note.** The previous configurable Hold Note field has been removed. No Live MIDI mapping is required.
 
-- Press the selected note: pause automatic travel at the current read position.
+- Press C0: pause automatic travel at the current read position.
 - Release it: resume from the current position in Free, or return to the grid in Sync, when the required transports are running and no other Hold or grab remains active.
-- Position and playhead scrubbing still work while held.
+- Position, playhead scrubbing, and marker seeking still work while held.
 - The on-screen **Hold** button is momentary: mouse-down holds; release, including outside its bounds, releases.
 - MIDI Hold and the automatable Hold parameter are independent sources. Releasing a note does not cancel a held button or automated Hold value.
 - Stopped stays stopped. Releasing Hold never enables Run.
 - Overlapping held notes are tracked by MIDI channel; releasing one does not release another. Velocity-zero Note On is a release. Sustain does not latch Hold.
-- Changing Hold Note clears captured notes. All Notes Off / All Sound Off clear captured notes for their MIDI channel.
+- All Notes Off / All Sound Off clear captured notes for their MIDI channel.
 
-Live's global note-to-parameter MIDI mapping can toggle rather than follow note release. Use the device's direct Hold Note input for momentary keyboard control.
+Live's global note-to-parameter MIDI mapping can toggle rather than follow note release. Use the device's direct C0 input for momentary keyboard control.
+
+## Playable seek markers
+
+| Marker | Note in Live | MIDI number | Initial position |
+| --- | --- | --- | --- |
+| 1 | C#0 | 25 | 0% |
+| 2 | D0 | 26 | 25% |
+| 3 | D#0 | 27 | 50% |
+| 4 | E0 | 28 | 75% |
+
+- Click a note label to seek on release; drag it horizontally to edit its location without scrubbing. Small motion under three pixels remains a click.
+- Each label has its own vertical lane so all four remain clickable even at coincident positions or endpoints.
+- Marker locations are saved, automatable `marker1`–`marker4` parameters, also exposed in the Timing / Markers bank.
+- A positive-velocity note-on seeks immediately. Note-offs, including velocity-zero Note On, do nothing to marker playback. Repeated triggers restart from the marker.
+- Seek does not enable Run or release Freeze. Scanning continues from the marker only when the current transport state permits it; these are seek points, not bounded slices.
+- A MIDI marker triggered during a ruler grab replaces the held coordinate without releasing mouse ownership. The next drag/release can replace it; releasing still follows the normal Sync/Free contract.
+- The highlighted label is the last triggered marker, not an indication that its note must remain held.
 
 ## Six seed contours
 
@@ -90,12 +111,13 @@ Switching seeds preserves actual read position and running state. The output may
 | Reverse | Reverses travel continuously in Free; mirrors the transport phase in Sync, which can change position immediately. |
 | Playhead grab | Suspends automatic travel and directly controls actual read position. |
 | Grab release | Free resumes from the scrubbed position without a jump. Sync returns to the grid. Neither overrides Hold or stopped transport. |
+| Seek marker | Jump to the stored position without changing Run, Hold, or Position. Running Sync continues with temporary phase displacement; Free continues locally. |
 | Hold | Suspends automatic travel without disabling manual scrubbing or changing Run. |
 | Contour ends | Wrap; endpoints can have different values. |
 
 ## Verified behavior
 
-The native Max smoke run exercised actual raw MIDI through `midiparse`, the control bridge, and `gen~`: note press/release, unrelated notes, Position changes while held, grab/release precedence, stopped transport, combined button/MIDI Hold, overlapping channels, velocity-zero release, sustain independence, note reassignment, and All Notes Off.
+Earlier native Max smoke runs exercised raw MIDI through `midiparse`, the control bridge, and `gen~`: note press/release, unrelated notes, Position changes while held, grab/release precedence, stopped transport, combined button/MIDI Hold, overlapping channels, velocity-zero release, sustain independence, and All Notes Off.
 
 Actual mouse interaction confirmed momentary Hold and release outside the button. The rebuilt MIDI AMXD was loaded in a separate Live Suite test set before an instrument: a computer-keyboard MIDI note held the playhead stationary, note release resumed traversal, and MIDI reached the instrument. These are runtime checks, not just patch-structure validation.
 
@@ -107,9 +129,12 @@ Transport-sync smoke checks ran the real locked clock and `gen~`: one/two/four-b
 
 The MIDI note and CC paths use `join 2 @triggers 0` to attach the channel before forwarding each event. Earlier `append 1` objects incorrectly declared a second inlet; Max deleted both channel patchcords when loading. A native Max smoke run of the corrected routing confirmed channel preservation for notes on channels 1, 2, and 16, note-off and velocity-zero release, plus channel-specific All Notes Off and All Sound Off messages, without extra events from channel updates.
 
+The playable-marker native Max smoke exercised the actual controller, `gen~`, locked clock, parameter objects, and raw MIDI filter: all four notes, edited marker locations, marker release independence, Freeze across channels, button/MIDI ownership, channel CC resets, stopped/Free/Sync seeking, persistent synced displacement and retriggers, and grid return on Freeze/grab release, Run, and host Play. Scripted pointer events in the actual `v8ui` exercised click-to-seek, parameter-saving drags, repeated clicks at coincident endpoints, release outside the graph, ruler release, and knob double-click reset without desktop input. The production surface was loaded and captured in native Max.
+
+`node --test scrubbles-midi.test.mjs` covers the reserved-note boundaries across all channels, running status across discarded messages, real-time interruption, and preservation of non-control channel/system messages. Patch-structure validation alone does not check these runtime semantics.
+
 ## Deferred design
 
 - Contour authoring, point editing, and segment bending.
-- **Note-assigned seek/playhead markers**: notes jump to chosen contour locations. Automatic scanning remains orthogonal, rather than becoming a mutually exclusive mode. This revised direction is recorded in `brainstorm.md`; it is not implemented yet.
 - Span, one-shot / ping-pong traversal, and retrigger policies.
 - Multiple contours / destinations and transport-phase persistence.
